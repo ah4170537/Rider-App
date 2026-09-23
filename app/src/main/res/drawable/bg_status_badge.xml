@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Rounded corners for the badge -->
+    <corners android:radius="8dp" />
+
+    <!-- Background color (using your offWhite color, or change it as needed) -->
+    <solid android:color="@color/offWhite" />
+
+</shape>

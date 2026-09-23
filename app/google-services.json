@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "754296650532",
+    "firebase_url": "https://e-commerce-app-bfe73-default-rtdb.firebaseio.com",
+    "project_id": "e-commerce-app-bfe73",
+    "storage_bucket": "e-commerce-app-bfe73.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754296650532:android:054126a98ba8f1582bd1b1",
+        "android_client_info": {
+          "package_name": "com.example.authentication_module"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqmK2ecj4s3C5wAQXwX8iISxFZt6EMUrg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754296650532:android:57a0f75d425b752a2bd1b1",
+        "android_client_info": {
+          "package_name": "com.example.e_commerce_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqmK2ecj4s3C5wAQXwX8iISxFZt6EMUrg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754296650532:android:60cc0a501e526f702bd1b1",
+        "android_client_info": {
+          "package_name": "com.example.riderapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqmK2ecj4s3C5wAQXwX8iISxFZt6EMUrg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

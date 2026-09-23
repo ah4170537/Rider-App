@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Rider App</string>
+    <string name="button">Button</string>
+    <string name="start_journey">Start Journey</string>
+</resources>
