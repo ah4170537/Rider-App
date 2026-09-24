@@ -81,6 +81,11 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
         documentPath = getIntent().getStringExtra("documentPath");
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        double lat = getIntent().getDoubleExtra("customerLat", 0.0);
+        double lng = getIntent().getDoubleExtra("customerLng", 0.0);
+        if (lat != 0.0 && lng != 0.0) {
+            customerLatLng = new LatLng(lat, lng);
+        }
 
         // Initialize the Start Journey Button for in-app 3D navigation
         btnStartJourney = findViewById(R.id.btnStartJourney);
@@ -91,7 +96,7 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             }
 
             if (customerLatLng == null) {
-                Toast.makeText(this, "Destination coordinates not loaded yet. Please wait.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Destination coordinates not available", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -137,26 +142,63 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             return;
         }
 
-        // First geocode customer destination so we have customerLatLng ready
-        if (customerAddressStr != null && !customerAddressStr.isEmpty()) {
-            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-            try {
-                List<Address> addressList = geocoder.getFromLocationName(customerAddressStr, 1);
-                if (addressList != null && !addressList.isEmpty()) {
-                    Address address = addressList.get(0);
-                    customerLatLng = new LatLng(address.getLatitude(), address.getLongitude());
+        // 1. Check if we received valid coordinates from the database
+        double lat = getIntent().getDoubleExtra("customerLat", 0.0);
+        double lng = getIntent().getDoubleExtra("customerLat", 0.0); // (Wait, make sure it's customerLng!)
 
-                    mMap.addMarker(new MarkerOptions()
-                            .position(customerLatLng)
-                            .title("Customer Destination")
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+        // Let's write it cleanly:
+        double intentLat = getIntent().getDoubleExtra("customerLat", 0.0);
+        double intentLng = getIntent().getDoubleExtra("customerLng", 0.0);
+
+        if (intentLat != 0.0 && intentLng != 0.0) {
+            // SUCCESS: Use exact coordinates from Firestore database
+            customerLatLng = new LatLng(intentLat, intentLng);
+
+            mMap.addMarker(new MarkerOptions()
+                    .position(customerLatLng)
+                    .title("Customer Destination (GPS)")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+
+            proceedWithRiderLocationAndRoute();
+
+        } else {
+            // FALLBACK: Coordinates are missing in DB, fallback to Geocoder using address text string
+            Toast.makeText(this, "GPS coordinates missing. Using text address fallback...", Toast.LENGTH_SHORT).show(); // Note: Toast.makeText
+
+            if (customerAddressStr != null && !customerAddressStr.isEmpty()) {
+                Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                try {
+                    List<Address> addressList = geocoder.getFromLocationName(customerAddressStr, 1);
+                    if (addressList != null && !addressList.isEmpty()) {
+                        Address address = addressList.get(0);
+                        customerLatLng = new LatLng(address.getLatitude(), address.getLongitude());
+
+                        mMap.addMarker(new MarkerOptions()
+                                .position(customerLatLng)
+                                .title("Customer Destination (Address Fallback)")
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))); // Orange marker to show it's a fallback
+                    }
+                } catch (IOException e) {
+                    Log.e("GeocodeError", e.getMessage());
                 }
-            } catch (IOException e) {
-                Log.e("GeocodeError", e.getMessage());
             }
-        }
 
-        // Get initial rider position
+            proceedWithRiderLocationAndRoute();
+        }
+    }
+
+    // Helper method to keep things clean
+    private void proceedWithRiderLocationAndRoute() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
             if (location == null) return;
 
@@ -167,13 +209,12 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
                     .position(riderLatLng)
                     .title("Your Location (Rider)")
                     .flat(true)
-                    .anchor(0.5f, 0.5f) // Center the anchor on the dot
+                    .anchor(0.5f, 0.5f)
                     .icon(riderIcon));
 
             if (customerLatLng != null) {
                 fetchRoadRouteFromOSRM(riderLatLng, customerLatLng);
 
-                // Default view before starting journey: show both points
                 LatLngBounds.Builder builder = new LatLngBounds.Builder();
                 builder.include(riderLatLng);
                 builder.include(customerLatLng);

@@ -20,7 +20,7 @@
             android:value="" />
 
         <activity
-            android:name=".AllOrdersActivity"
+            android:name=".DashboardActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -35,6 +35,10 @@
         <activity
             android:name=".DeliveryMapActivity"
             android:exported="false" />
+        <activity
+            android:name=".AllOrdersActivity"
+            android:exported="false"
+            />
 
     </application>
 

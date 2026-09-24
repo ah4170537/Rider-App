@@ -27,6 +27,8 @@ public class OrderDetailsActivity extends AppCompatActivity {
     // Class-level variables so updateOrderStatus can access them
     private String customerAddress = "";
     private String customerCity = "";
+    private double customerLat = 0.0;
+    private double customerLng = 0.0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,15 +55,15 @@ public class OrderDetailsActivity extends AppCompatActivity {
         }
 
         btnStartDelivery.setOnClickListener(v -> {
-            if (customerAddress != null && !customerAddress.isEmpty()) {
-                String fullDestination = customerAddress + (customerCity != null ? ", " + customerCity : "");
-
+            if (customerLat != 0.0 && customerLng != 0.0) {
                 Intent intent = new Intent(OrderDetailsActivity.this, DeliveryMapActivity.class);
-                intent.putExtra("customerAddress", fullDestination);
+                intent.putExtra("customerLat", customerLat);
+                intent.putExtra("customerLng", customerLng);
                 intent.putExtra("documentPath", documentPath);
+                intent.putExtra("customerAddress", customerAddress);
                 startActivity(intent);
             } else {
-                Toast.makeText(this, "Customer address missing", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Customer coordinates missing in database", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -81,6 +83,8 @@ public class OrderDetailsActivity extends AppCompatActivity {
                         String status = doc.getString("status");
                         Double total = doc.getDouble("total");
                         Timestamp createdAt = doc.getTimestamp("createdAt");
+                        customerLat = doc.getDouble("latitude") != null ? doc.getDouble("latitude") : 0.0;
+                        customerLng = doc.getDouble("longitude") != null ? doc.getDouble("longitude") : 0.0;
 
                         // Safely set text views
                         if (tvOrderId != null) tvOrderId.setText("Order ID: #" + orderId.toUpperCase());
