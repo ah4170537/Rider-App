@@ -6,15 +6,22 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -26,15 +33,22 @@ import java.util.Map;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    private Button btnLogout;
-    private TextView tvActiveStatusLabel, tvCompletedCount;
+    private DrawerLayout drawerLayout;
+    private ImageView btnMenuToggle;
+    private TextView tvActiveStatusLabel, tvCompletedCount, tvRiderName, tvProfileInitial, tvOrdersFeedTitle;
     private RecyclerView rvOrdersFeed;
     private BottomNavigationView bottomNavigationView;
+    private FrameLayout loadingContainer;
+    private LinearLayout mainContentLayout;
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
     private DashboardOrdersAdapter adapter;
     private List<AllOrdersActivity.OrderModel> orderList;
+
+    private boolean isProfileLoaded = false;
+    private boolean isOrdersLoaded = false;
+    private String riderCity = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,11 +59,18 @@ public class DashboardActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
 
         // Bind UI Views
-        btnLogout = findViewById(R.id.btnLogout);
+        drawerLayout = findViewById(R.id.drawerLayout);
+        btnMenuToggle = findViewById(R.id.btnMenuToggle);
         tvActiveStatusLabel = findViewById(R.id.tvActiveStatusLabel);
         tvCompletedCount = findViewById(R.id.tvCompletedCount);
         rvOrdersFeed = findViewById(R.id.rvOrdersFeed);
         bottomNavigationView = findViewById(R.id.bottomNavigationView);
+        loadingContainer = findViewById(R.id.loadingContainer);
+        mainContentLayout = findViewById(R.id.mainContentLayout);
+
+        tvRiderName = findViewById(R.id.tvRiderName);
+        tvProfileInitial = findViewById(R.id.tvProfileInitial);
+        tvOrdersFeedTitle = findViewById(R.id.tvOrdersFeedTitle);
 
         // Setup RecyclerView
         rvOrdersFeed.setLayoutManager(new LinearLayoutManager(this));
@@ -57,17 +78,55 @@ public class DashboardActivity extends AppCompatActivity {
         adapter = new DashboardOrdersAdapter(orderList);
         rvOrdersFeed.setAdapter(adapter);
 
-        // Handle Logout Click & Session Termination
-        btnLogout.setOnClickListener(v -> {
-            mAuth.signOut(); // Clear Firebase Session
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+        // Fetch Data
+        fetchRiderProfile();
 
-            // Redirect to Login and clear back stack so user can't press back to return here
-            Intent intent = new Intent(DashboardActivity.this, LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
+        // Open Sidebar Drawer on clicking the 3 lines
+        btnMenuToggle.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+
+        // Bind Sidebar Header / Menu clicks from nav_header_drawer layout
+        View navView = findViewById(R.id.navigationView);
+
+        TextView menuDashboard = navView.findViewById(R.id.menuDashboard);
+        TextView menuOrderProgress = navView.findViewById(R.id.menuOrderProgress);
+        TextView menuShippingAddresses = navView.findViewById(R.id.menuShippingAddresses);
+        TextView menuSettings = navView.findViewById(R.id.menuSettings);
+        TextView menuHelpSupport = navView.findViewById(R.id.menuHelpSupport);
+        Button btnDrawerLogout = navView.findViewById(R.id.btnDrawerLogout);
+
+        if (menuDashboard != null) {
+            menuDashboard.setOnClickListener(v -> drawerLayout.closeDrawer(GravityCompat.START));
+        }
+        if (menuOrderProgress != null) {
+            menuOrderProgress.setOnClickListener(v -> {
+                drawerLayout.closeDrawer(GravityCompat.START);
+                startActivity(new Intent(this, AllOrdersActivity.class));
+            });
+        }
+        if (menuShippingAddresses != null) {
+            menuShippingAddresses.setOnClickListener(v -> {
+                drawerLayout.closeDrawer(GravityCompat.START);
+                Toast.makeText(this, "Shipping Addresses coming soon", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (menuSettings != null) {
+            menuSettings.setOnClickListener(v -> {
+                drawerLayout.closeDrawer(GravityCompat.START);
+                Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (menuHelpSupport != null) {
+            menuHelpSupport.setOnClickListener(v -> {
+                drawerLayout.closeDrawer(GravityCompat.START);
+                Toast.makeText(this, "Help & Support coming soon", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (btnDrawerLogout != null) {
+            btnDrawerLogout.setOnClickListener(v -> {
+                drawerLayout.closeDrawer(GravityCompat.START);
+                showLogoutConfirmationDialog();
+            });
+        }
 
         // Bottom Navigation handling
         bottomNavigationView.setOnItemSelectedListener(item -> {
@@ -78,14 +137,89 @@ public class DashboardActivity extends AppCompatActivity {
                 startActivity(new Intent(this, AllOrdersActivity.class));
                 return true;
             } else if (id == R.id.nav_profile) {
-                Toast.makeText(this, "Profile section coming soon", Toast.LENGTH_SHORT).show();
+                drawerLayout.openDrawer(GravityCompat.START);
                 return true;
             }
             return false;
         });
+    }
 
-        // Fetch live orders into dashboard feed
-        fetchDashboardOrders();
+    private void showLogoutConfirmationDialog() {
+        android.content.Context context = new android.view.ContextThemeWrapper(this, com.google.android.material.R.style.Theme_MaterialComponents_Light_Dialog_Alert);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to log out of your rider account?")
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .setPositiveButton("Logout", (dialog, which) -> {
+                    // 1. Sign out from Firebase
+                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut();
+
+                    // 2. Redirect to Login activity and clear back stack
+                    android.content.Intent intent = new android.content.Intent(DashboardActivity.this, LoginActivity.class);
+                    intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                })
+                .show();
+    }
+
+    private void checkAndHideLoader() {
+        if (isProfileLoaded && isOrdersLoaded) {
+            loadingContainer.setVisibility(View.GONE);
+            mainContentLayout.setVisibility(View.VISIBLE);
+            bottomNavigationView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void fetchRiderProfile() {
+        if (mAuth.getCurrentUser() == null) {
+            isProfileLoaded = true;
+            fetchDashboardOrders();
+            return;
+        }
+        String uid = mAuth.getCurrentUser().getUid();
+
+        db.collection("riders").document(uid).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String fullName = documentSnapshot.getString("fullName");
+                        riderCity = documentSnapshot.getString("city");
+
+                        if (fullName != null && !fullName.isEmpty()) {
+                            tvRiderName.setText(fullName);
+                            if (tvProfileInitial != null) {
+                                tvProfileInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
+                            }
+
+                            // Also update sidebar header name/email
+                            View navView = findViewById(R.id.navigationView);
+                            TextView tvDrawerName = navView.findViewById(R.id.navDrawerName);
+                            TextView tvDrawerEmail = navView.findViewById(R.id.navDrawerEmail);
+                            TextView tvDrawerInitial = navView.findViewById(R.id.navDrawerProfileInitial);
+                            if (tvDrawerName != null) tvDrawerName.setText(fullName);
+                            if (tvDrawerEmail != null && mAuth.getCurrentUser() != null) {
+                                tvDrawerEmail.setText(mAuth.getCurrentUser().getEmail());
+                            }
+                            if (tvDrawerInitial != null) tvDrawerInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
+                        }
+
+                        if (riderCity != null && !riderCity.trim().isEmpty()) {
+                            if (tvOrdersFeedTitle != null) {
+                                tvOrdersFeedTitle.setText("Available Orders (" + riderCity.trim() + ")");
+                            }
+                            if (tvActiveStatusLabel != null) {
+                                tvActiveStatusLabel.setText("Active in " + riderCity.trim());
+                            }
+                        }
+                    }
+                    isProfileLoaded = true;
+                    fetchDashboardOrders();
+                })
+                .addOnFailureListener(e -> {
+                    isProfileLoaded = true;
+                    fetchDashboardOrders();
+                });
     }
 
     private void fetchDashboardOrders() {
@@ -93,6 +227,8 @@ public class DashboardActivity extends AppCompatActivity {
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .addSnapshotListener((value, error) -> {
                     if (error != null) {
+                        isOrdersLoaded = true;
+                        checkAndHideLoader();
                         return;
                     }
 
@@ -103,11 +239,18 @@ public class DashboardActivity extends AppCompatActivity {
                         for (DocumentSnapshot doc : value.getDocuments()) {
                             AllOrdersActivity.OrderModel order = doc.toObject(AllOrdersActivity.OrderModel.class);
                             if (order != null) {
+                                // Filter by rider's city if riderCity is set
+                                String orderCity = order.getCity();
+                                if (riderCity != null && !riderCity.trim().isEmpty()) {
+                                    if (orderCity == null || !orderCity.trim().equalsIgnoreCase(riderCity.trim())) {
+                                        continue; // Skip order if city doesn't match rider's city
+                                    }
+                                }
+
                                 order.setOrderId(doc.getId());
                                 order.setDocumentPath(doc.getReference().getPath());
                                 orderList.add(order);
 
-                                // Count completed ones for stats bar
                                 if ("Delivered".equalsIgnoreCase(order.getStatus())) {
                                     completedCount++;
                                 }
@@ -116,10 +259,12 @@ public class DashboardActivity extends AppCompatActivity {
                         tvCompletedCount.setText(String.valueOf(completedCount));
                         adapter.notifyDataSetChanged();
                     }
+
+                    isOrdersLoaded = true;
+                    checkAndHideLoader();
                 });
     }
 
-    // Lightweight adapter specifically for the dashboard feed cards
     private static class DashboardOrdersAdapter extends RecyclerView.Adapter<DashboardOrdersAdapter.DashboardOrderViewHolder> {
         private final List<AllOrdersActivity.OrderModel> orders;
 

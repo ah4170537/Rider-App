@@ -66,7 +66,7 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
     private Marker riderMarker;
     private LocationCallback locationCallback;
 
-    // Navigation tracking variables
+    // Navigation tracking variables (starts false so it shows 2D view first)
     private boolean isJourneyStarted = false;
     private LatLng customerLatLng;
     private Polyline currentRoutePolyline;
@@ -87,36 +87,27 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             customerLatLng = new LatLng(lat, lng);
         }
 
-        // Initialize the Start Journey Button for in-app 3D navigation
+        // Initialize the Start Journey Button for switching to 3D navigation mode
         btnStartJourney = findViewById(R.id.btnStartJourney);
-        btnStartJourney.setOnClickListener(v -> {
-            if (customerAddressStr == null || customerAddressStr.isEmpty()) {
-                Toast.makeText(this, "Destination address not available", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        if (btnStartJourney != null) {
+            btnStartJourney.setOnClickListener(v -> {
+                if (customerLatLng == null) {
+                    Toast.makeText(this, "Destination coordinates not available", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
-            if (customerLatLng == null) {
-                Toast.makeText(this, "Destination coordinates not available", Toast.LENGTH_SHORT).show();
-                return;
-            }
+                // Toggle journey state to active navigation (No database status update here anymore)
+                isJourneyStarted = true;
+                btnStartJourney.setText("Navigating...");
+                btnStartJourney.setEnabled(false);
+                Toast.makeText(this, "3D Navigation Active!", Toast.LENGTH_SHORT).show();
 
-            // 1. Call Vercel backend to update order status securely instead of local direct write
-            if (documentPath != null && !documentPath.isEmpty()) {
-                updateOrderStatusViaVercel(documentPath, "Out for Delivery");
-            }
-
-            // 2. Toggle journey state
-            isJourneyStarted = true;
-            btnStartJourney.setText("Navigating...");
-            btnStartJourney.setEnabled(false); // Disable button once started
-            Toast.makeText(this, "Delivery Started & 3D Navigation Active!", Toast.LENGTH_SHORT).show();
-
-            // 3. Instantly fetch route and lock camera into 3D navigation mode from current rider position
-            if (riderMarker != null) {
-                fetchRoadRouteFromOSRM(riderMarker.getPosition(), customerLatLng);
-                startNavigationCamera(riderMarker.getPosition(), 0);
-            }
-        });
+                if (riderMarker != null) {
+                    fetchRoadRouteFromOSRM(riderMarker.getPosition(), customerLatLng);
+                    startNavigationCamera(riderMarker.getPosition(), 0);
+                }
+            });
+        }
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -128,7 +119,6 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-        // Optional: Enable UI settings for a clean look
         mMap.getUiSettings().setCompassEnabled(true);
         mMap.getUiSettings().setTiltGesturesEnabled(true);
         mMap.getUiSettings().setRotateGesturesEnabled(true);
@@ -142,16 +132,10 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             return;
         }
 
-        // 1. Check if we received valid coordinates from the database
-        double lat = getIntent().getDoubleExtra("customerLat", 0.0);
-        double lng = getIntent().getDoubleExtra("customerLat", 0.0); // (Wait, make sure it's customerLng!)
-
-        // Let's write it cleanly:
         double intentLat = getIntent().getDoubleExtra("customerLat", 0.0);
         double intentLng = getIntent().getDoubleExtra("customerLng", 0.0);
 
         if (intentLat != 0.0 && intentLng != 0.0) {
-            // SUCCESS: Use exact coordinates from Firestore database
             customerLatLng = new LatLng(intentLat, intentLng);
 
             mMap.addMarker(new MarkerOptions()
@@ -162,8 +146,7 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             proceedWithRiderLocationAndRoute();
 
         } else {
-            // FALLBACK: Coordinates are missing in DB, fallback to Geocoder using address text string
-            Toast.makeText(this, "GPS coordinates missing. Using text address fallback...", Toast.LENGTH_SHORT).show(); // Note: Toast.makeText
+            Toast.makeText(this, "GPS coordinates missing. Using text address fallback...", Toast.LENGTH_SHORT).show();
 
             if (customerAddressStr != null && !customerAddressStr.isEmpty()) {
                 Geocoder geocoder = new Geocoder(this, Locale.getDefault());
@@ -176,7 +159,7 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
                         mMap.addMarker(new MarkerOptions()
                                 .position(customerLatLng)
                                 .title("Customer Destination (Address Fallback)")
-                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))); // Orange marker to show it's a fallback
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
                     }
                 } catch (IOException e) {
                     Log.e("GeocodeError", e.getMessage());
@@ -187,16 +170,8 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
-    // Helper method to keep things clean
     private void proceedWithRiderLocationAndRoute() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
         fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
@@ -215,6 +190,7 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
             if (customerLatLng != null) {
                 fetchRoadRouteFromOSRM(riderLatLng, customerLatLng);
 
+                // Show both rider and customer in a 2D overview zoom bounds initially
                 LatLngBounds.Builder builder = new LatLngBounds.Builder();
                 builder.include(riderLatLng);
                 builder.include(customerLatLng);
@@ -229,16 +205,14 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
 
-        // Outer white ring / border paint
         Paint borderPaint = new Paint();
         borderPaint.setColor(Color.WHITE);
         borderPaint.setStyle(Paint.Style.FILL);
         borderPaint.setAntiAlias(true);
         canvas.drawCircle(width / 2f, height / 2f, width / 2f, borderPaint);
 
-        // Inner bright blue dot paint (Uber blue style)
         Paint innerPaint = new Paint();
-        innerPaint.setColor(Color.parseColor("#2196F3")); // Vibrant Blue
+        innerPaint.setColor(Color.parseColor("#2196F3"));
         innerPaint.setStyle(Paint.Style.FILL);
         innerPaint.setAntiAlias(true);
         canvas.drawCircle(width / 2f, height / 2f, width / 2.6f, innerPaint);
@@ -246,7 +220,6 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
-    // Continuously updates rider location, sends to Firestore, and updates 3D map view if journey started
     private void startLocationUpdates() {
         LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
                 .setMinUpdateIntervalMillis(3000)
@@ -259,18 +232,17 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
                     LatLng newPos = new LatLng(location.getLatitude(), location.getLongitude());
                     float bearing = location.hasBearing() ? location.getBearing() : 0;
 
-                    // Update map marker position smoothly if map is loaded
                     if (riderMarker != null) {
                         riderMarker.setPosition(newPos);
                     }
 
-                    // If user clicked Start Journey, update path dynamically and apply 3D Camera view
+                    // Only activate 3D navigation camera if the user explicitly clicked the Start Journey button
                     if (isJourneyStarted && customerLatLng != null) {
                         fetchRoadRouteFromOSRM(newPos, customerLatLng);
                         startNavigationCamera(newPos, bearing);
                     }
 
-                    // Push live GPS coordinates ONLY to this specific order's tracking path in Firestore
+                    // Push live GPS coordinates to Firestore tracking path
                     if (documentPath != null && !documentPath.isEmpty()) {
                         Map<String, Object> liveLocation = new HashMap<>();
                         liveLocation.put("latitude", location.getLatitude());
@@ -291,56 +263,15 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
-    // Helper method to lock camera into 3D navigation mode
     private void startNavigationCamera(LatLng currentPos, float bearing) {
         CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(currentPos)      // Center map on rider
-                .zoom(18f)               // Street level zoom
-                .tilt(50f)               // 3D Tilt angle
-                .bearing(bearing)        // Rotate map according to movement direction
+                .target(currentPos)
+                .zoom(18f)
+                .tilt(50f)
+                .bearing(bearing)
                 .build();
 
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 1000, null);
-    }
-
-    // Helper method to securely update order status via your Vercel backend
-    private void updateOrderStatusViaVercel(String docPath, String newStatus) {
-        String url = "https://auth-app-backend-dcq81fg1c-xtreme-solutions-systems.vercel.app/api/update-order";
-
-        JSONObject jsonBody = new JSONObject();
-        try {
-            jsonBody.put("documentPath", docPath);
-            jsonBody.put("status", newStatus);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-        RequestQueue queue = Volley.newRequestQueue(this);
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.POST, url, jsonBody,
-                response -> Log.d("VercelAPI", "Status updated successfully via backend"),
-                error -> {
-                    // Print the exact error message coming from Vercel's response body
-                    if (error.networkResponse != null && error.networkResponse.data != null) {
-                        String errorBody = new String(error.networkResponse.data);
-                        Log.e("VercelAPI", "Server Error Code: " + error.networkResponse.statusCode + " | Details: " + errorBody);
-                    } else {
-                        Log.e("VercelAPI", "Failed to update status via backend: " + error.toString());
-                    }
-                }
-        ) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("Content-Type", "application/json");
-//                 If your backend needs a custom API key or token, add it here:
-                headers.put("Authorization", "Bearer 7f3a9c2e1b8d4f6a0e5c7b9d2a4f6e8c1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f2a");
-                return headers;
-            }
-        };
-
-        queue.add(request);
     }
 
     private void fetchRoadRouteFromOSRM(LatLng start, LatLng end) {
@@ -370,12 +301,10 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
                             }
 
                             runOnUiThread(() -> {
-                                // Remove previous polyline so old path lines don't stack up
                                 if (currentRoutePolyline != null) {
                                     currentRoutePolyline.remove();
                                 }
 
-                                // Add the updated route line in clean blue
                                 currentRoutePolyline = mMap.addPolyline(new PolylineOptions()
                                         .addAll(polylinePoints)
                                         .width(14f)
@@ -402,7 +331,6 @@ public class DeliveryMapActivity extends AppCompatActivity implements OnMapReady
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Stop background location updates when leaving the activity to save battery
         if (fusedLocationClient != null && locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
         }

@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -45,6 +46,22 @@ public class AllOrdersActivity extends AppCompatActivity {
     }
 
     private void fetchOrders() {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        if (auth.getCurrentUser() == null) {
+            listenToOrders(null);
+            return;
+        }
+
+        String uid = auth.getCurrentUser().getUid();
+        db.collection("riders").document(uid).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    String riderCity = documentSnapshot.exists() ? documentSnapshot.getString("city") : null;
+                    listenToOrders(riderCity);
+                })
+                .addOnFailureListener(e -> listenToOrders(null));
+    }
+
+    private void listenToOrders(String riderCity) {
         db.collectionGroup("user_orders")
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .addSnapshotListener((value, error) -> {
@@ -58,6 +75,12 @@ public class AllOrdersActivity extends AppCompatActivity {
                         for (DocumentSnapshot doc : value.getDocuments()) {
                             OrderModel order = doc.toObject(OrderModel.class);
                             if (order != null) {
+                                String orderCity = order.getCity();
+                                if (riderCity != null && !riderCity.trim().isEmpty()) {
+                                    if (orderCity == null || !orderCity.trim().equalsIgnoreCase(riderCity.trim())) {
+                                        continue; // Skip order if city doesn't match rider's city
+                                    }
+                                }
                                 order.setOrderId(doc.getId());
                                 order.setDocumentPath(doc.getReference().getPath());
                                 orderList.add(order);

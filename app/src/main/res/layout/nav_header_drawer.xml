@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <!-- ===== Header ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/gradient_header_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="28dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            app:cardBackgroundColor="#33FFFFFF"
+            app:cardCornerRadius="36dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#80FFFFFF"
+            app:strokeWidth="2dp">
+
+            <TextView
+                android:id="@+id/navDrawerProfileInitial"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="A"
+                android:textColor="@android:color/white"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/navDrawerName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Ahmad Haseeb"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/navDrawerEmail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="ah4170537@gmail.com"
+            android:textColor="#E0E0E0"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- ===== Menu items (scrolls on small screens, takes all free space) ===== -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp">
+
+            <!-- Active item -->
+            <TextView
+                android:id="@+id/menuDashboard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_drawer_item_selected"
+                android:drawableStart="@drawable/ic_dashboard"
+                android:drawablePadding="16dp"
+                android:drawableTint="#116682"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp"
+                android:text="Dashboard"
+                android:textColor="#116682"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/menuOrderProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_drawer_item"
+                android:drawableStart="@drawable/ic_order_progress"
+                android:drawablePadding="16dp"
+                android:drawableTint="@color/primaryDark"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp"
+                android:text="Order Progress"
+                android:textColor="#333333"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/menuShippingAddresses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_drawer_item"
+                android:drawableStart="@drawable/ic_location"
+                android:drawablePadding="16dp"
+                android:drawableTint="@color/primaryDark"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp"
+                android:text="Shipping Addresses"
+                android:textColor="#333333"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/menuSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_drawer_item"
+                android:drawablePadding="16dp"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp"
+                android:text="Settings"
+                android:textColor="#333333"
+                android:textSize="15sp"
+                app:drawableStartCompat="@drawable/ic_settings"
+                app:drawableTint="@color/primaryDark" />
+
+            <TextView
+                android:id="@+id/menuHelpSupport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_drawer_item"
+
+                android:drawablePadding="16dp"
+                android:drawableTint="@color/primaryDark"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="14dp"
+                android:text="Help &amp; Support"
+                android:textColor="#333333"
+                android:textSize="15sp"
+                app:drawableStartCompat="@drawable/ic_help" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ===== Footer: always pinned to the bottom ===== -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="20dp"
+
+        android:background="#EEEEEE" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp"
+        android:gravity="bottom">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDrawerLogout"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:backgroundTint="#FFF0F1"
+            android:text="Logout"
+            android:textColor="#D32F2F"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:cornerRadius="14dp"
+            app:elevation="0dp"
+            app:icon="@drawable/ic_logout"
+            app:iconGravity="textStart"
+            app:iconPadding="10dp"
+            app:iconTint="#D32F2F" />
+    </LinearLayout>
+
+</LinearLayout>
