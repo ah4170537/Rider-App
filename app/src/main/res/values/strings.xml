@@ -2,4 +2,14 @@
     <string name="app_name">Rider App</string>
     <string name="button">Button</string>
     <string name="start_journey">Start Journey</string>
+    <string name="john_doe">John Doe</string>
+    <string name="email_address">Email Address</string>
+    <string name="name_example_com">name@example.com</string>
+    <string name="password">Password</string>
+    <string name="at_least_6_characters">At least 6 characters</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="re_enter_your_password">Re-enter your password</string>
+    <string name="register">Register</string>
+    <string name="already_have_an_account">Already have an account?</string>
+    <string name="log_in">Log In</string>
 </resources>

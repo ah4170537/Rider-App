@@ -20,7 +20,7 @@
             android:value="" />
 
         <activity
-            android:name=".DashboardActivity"
+            android:name=".LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -37,6 +37,14 @@
             android:exported="false" />
         <activity
             android:name=".AllOrdersActivity"
+            android:exported="false"
+            />
+        <activity
+            android:name=".SignupActivity"
+            android:exported="false"
+            />
+        <activity
+            android:name=".DashboardActivity"
             android:exported="false"
             />
 
