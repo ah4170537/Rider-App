@@ -5,17 +5,17 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -26,12 +26,13 @@ import java.util.Map;
 
 public class DashboardActivity extends AppCompatActivity {
 
-    private SwitchCompat switchOnlineOffline;
-    private TextView tvOnlineStatusText, tvActiveStatusLabel, tvCompletedCount;
+    private Button btnLogout;
+    private TextView tvActiveStatusLabel, tvCompletedCount;
     private RecyclerView rvOrdersFeed;
     private BottomNavigationView bottomNavigationView;
 
     private FirebaseFirestore db;
+    private FirebaseAuth mAuth;
     private DashboardOrdersAdapter adapter;
     private List<AllOrdersActivity.OrderModel> orderList;
 
@@ -40,9 +41,11 @@ public class DashboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
 
+        mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
+
         // Bind UI Views
-        switchOnlineOffline = findViewById(R.id.switchOnlineOffline);
-        tvOnlineStatusText = findViewById(R.id.tvOnlineStatusText);
+        btnLogout = findViewById(R.id.btnLogout);
         tvActiveStatusLabel = findViewById(R.id.tvActiveStatusLabel);
         tvCompletedCount = findViewById(R.id.tvCompletedCount);
         rvOrdersFeed = findViewById(R.id.rvOrdersFeed);
@@ -54,21 +57,16 @@ public class DashboardActivity extends AppCompatActivity {
         adapter = new DashboardOrdersAdapter(orderList);
         rvOrdersFeed.setAdapter(adapter);
 
-        db = FirebaseFirestore.getInstance();
+        // Handle Logout Click & Session Termination
+        btnLogout.setOnClickListener(v -> {
+            mAuth.signOut(); // Clear Firebase Session
+            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
 
-        // Handle Status Switch Toggle
-        switchOnlineOffline.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                tvOnlineStatusText.setText("Online");
-                tvActiveStatusLabel.setText("Ready for Orders");
-                tvActiveStatusLabel.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
-                Toast.makeText(this, "You are online", Toast.LENGTH_SHORT).show();
-            } else {
-                tvOnlineStatusText.setText("Offline");
-                tvActiveStatusLabel.setText("Paused");
-                tvActiveStatusLabel.setTextColor(getResources().getColor(android.R.color.darker_gray));
-                Toast.makeText(this, "You are offline", Toast.LENGTH_SHORT).show();
-            }
+            // Redirect to Login and clear back stack so user can't press back to return here
+            Intent intent = new Intent(DashboardActivity.this, LoginActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
         });
 
         // Bottom Navigation handling
@@ -77,7 +75,6 @@ public class DashboardActivity extends AppCompatActivity {
             if (id == R.id.nav_dashboard) {
                 return true;
             } else if (id == R.id.nav_history) {
-                // If you want a dedicated full-screen list option
                 startActivity(new Intent(this, AllOrdersActivity.class));
                 return true;
             } else if (id == R.id.nav_profile) {
@@ -87,7 +84,7 @@ public class DashboardActivity extends AppCompatActivity {
             return false;
         });
 
-        // Fetch live orders into dashboard feed using the same robust query
+        // Fetch live orders into dashboard feed
         fetchDashboardOrders();
     }
 
@@ -133,7 +130,6 @@ public class DashboardActivity extends AppCompatActivity {
         @NonNull
         @Override
         public DashboardOrderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            // Reusing your existing item_order layout design
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_order, parent, false);
             return new DashboardOrderViewHolder(view);
         }
@@ -147,12 +143,10 @@ public class DashboardActivity extends AppCompatActivity {
             holder.tvTotalAmount.setText("PKR " + order.getTotal());
             holder.tvOrderStatus.setText(order.getStatus() != null ? order.getStatus() : "Pending");
 
-            // Simple item count or summary preview
             List<Map<String, Object>> items = order.getItems();
             int itemCount = (items != null) ? items.size() : 0;
             holder.tvItemCount.setText(itemCount + " item(s) in this order");
 
-            // Open order details / tracking map when clicked
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), OrderDetailsActivity.class);
                 intent.putExtra("documentPath", order.getDocumentPath());

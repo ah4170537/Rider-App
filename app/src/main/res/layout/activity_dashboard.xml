@@ -69,33 +69,19 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- Online / Offline Switch Container -->
-                <LinearLayout
+                <!-- Logout Button -->
+                <Button
+                    android:id="@+id/btnLogout"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_switch_bg"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="6dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_height="38dp"
+                    android:backgroundTint="#D32F2F"
+                    android:text="Log Out"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="10dp"
+                    android:paddingHorizontal="12dp" />
 
-                    <TextView
-                        android:id="@+id/tvOnlineStatusText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Online"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="8dp" />
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchOnlineOffline"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        app:theme="@style/Widget.AppCompat.CompoundButton.Switch" />
-                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
