@@ -12,6 +12,7 @@
         android:layout_height="match_parent"
         android:background="#EEEEEE">
 
+        <!-- Dashboard Main Content Layout -->
         <LinearLayout
             android:id="@+id/mainContentLayout"
             android:layout_width="match_parent"
@@ -205,6 +206,14 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Standalone Fragment Container (Covers full screen above bottom nav) -->
+        <FrameLayout
+            android:id="@+id/fragmentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="56dp"
+            android:visibility="gone" />
+
         <!-- Bottom Navigation Bar -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigationView"
@@ -233,11 +242,11 @@
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    <!-- Sliding Navigation Drawer (Sidebar) View -->
+    <!-- Navigation Drawer View Panel -->
     <include
         android:id="@+id/navigationView"
         layout="@layout/nav_header_drawer"
-        android:layout_width="300dp"
+        android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start" />
 

@@ -132,12 +132,19 @@ public class DashboardActivity extends AppCompatActivity {
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_dashboard) {
+                findViewById(R.id.mainContentLayout).setVisibility(View.VISIBLE);
+                findViewById(R.id.fragmentContainer).setVisibility(View.GONE);
                 return true;
             } else if (id == R.id.nav_history) {
                 startActivity(new Intent(this, AllOrdersActivity.class));
                 return true;
             } else if (id == R.id.nav_profile) {
-                drawerLayout.openDrawer(GravityCompat.START);
+                findViewById(R.id.mainContentLayout).setVisibility(View.GONE);
+                findViewById(R.id.fragmentContainer).setVisibility(View.VISIBLE);
+
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragmentContainer, new ProfileFragment())
+                        .commit();
                 return true;
             }
             return false;
