@@ -4,7 +4,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -19,6 +21,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class ProfileFragment extends Fragment {
 
     private TextView tvFullName, tvEmail, btnEdit, tvProfileInitial;
+    private FrameLayout loadingContainer;
+    private ScrollView profileContentLayout;
 
     // Field view holders
     private View layoutFullName, layoutEmail, layoutPhone, layoutCnic, layoutCountry, layoutState, layoutCity, layoutBikeModel, layoutBikeNumber;
@@ -40,6 +44,8 @@ public class ProfileFragment extends Fragment {
         tvEmail = view.findViewById(R.id.tvEmail);
         btnEdit = view.findViewById(R.id.btnEdit);
         tvProfileInitial = view.findViewById(R.id.tvProfileInitial);
+        loadingContainer = view.findViewById(R.id.loadingContainer);
+        profileContentLayout = view.findViewById(R.id.profileContentLayout);
 
         // Bind custom row layouts
         layoutFullName = view.findViewById(R.id.layoutFullName);
@@ -52,16 +58,16 @@ public class ProfileFragment extends Fragment {
         layoutBikeModel = view.findViewById(R.id.layoutBikeModel);
         layoutBikeNumber = view.findViewById(R.id.layoutBikeNumber);
 
-        // Setup row labels and icons
-        setupRow(layoutFullName, android.R.drawable.ic_menu_myplaces, "Full Name", "Loading...");
-        setupRow(layoutEmail, android.R.drawable.ic_dialog_email, "Email", "Loading...");
-        setupRow(layoutPhone, android.R.drawable.ic_menu_call, "Primary Phone", "Loading...");
-        setupRow(layoutCnic, android.R.drawable.ic_menu_info_details, "CNIC", "Loading...");
-        setupRow(layoutCountry, android.R.drawable.ic_menu_compass, "Country", "Loading...");
-        setupRow(layoutState, android.R.drawable.ic_menu_mapmode, "State", "Loading...");
-        setupRow(layoutCity, android.R.drawable.ic_menu_mylocation, "City", "Loading...");
-        setupRow(layoutBikeModel, android.R.drawable.ic_menu_manage, "Bike Model", "Loading...");
-        setupRow(layoutBikeNumber, android.R.drawable.ic_menu_agenda, "Bike Number", "Loading...");
+        // Setup row labels and icons (blank default values instead of "Loading...")
+        setupRow(layoutFullName, android.R.drawable.ic_menu_myplaces, "Full Name", "");
+        setupRow(layoutEmail, android.R.drawable.ic_dialog_email, "Email", "");
+        setupRow(layoutPhone, android.R.drawable.ic_menu_call, "Primary Phone", "");
+        setupRow(layoutCnic, android.R.drawable.ic_menu_info_details, "CNIC", "");
+        setupRow(layoutCountry, android.R.drawable.ic_menu_compass, "Country", "");
+        setupRow(layoutState, android.R.drawable.ic_menu_mapmode, "State", "");
+        setupRow(layoutCity, android.R.drawable.ic_menu_mylocation, "City", "");
+        setupRow(layoutBikeModel, android.R.drawable.ic_menu_manage, "Bike Model", "");
+        setupRow(layoutBikeNumber, android.R.drawable.ic_menu_agenda, "Bike Number", "");
 
         // Load data
         loadUserProfileData();
@@ -95,12 +101,22 @@ public class ProfileFragment extends Fragment {
     }
 
     private void loadUserProfileData() {
-        if (mAuth.getCurrentUser() == null) return;
+        if (mAuth.getCurrentUser() == null) {
+            hideLoader();
+            return;
+        }
         String currentUserId = mAuth.getCurrentUser().getUid();
 
         DocumentReference docRef = db.collection("riders").document(currentUserId);
-        docRef.get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists() && isAdded()) {
+        docRef.addSnapshotListener((documentSnapshot, error) -> {
+            if (!isAdded()) return;
+
+            if (error != null) {
+                hideLoader();
+                return;
+            }
+
+            if (documentSnapshot != null && documentSnapshot.exists()) {
                 String fullName = documentSnapshot.getString("fullName");
                 String email = documentSnapshot.getString("email");
                 String phone = documentSnapshot.getString("phone");
@@ -129,6 +145,16 @@ public class ProfileFragment extends Fragment {
                 setRowValue(layoutBikeModel, bikeModel);
                 setRowValue(layoutBikeNumber, bikeNumber);
             }
+            hideLoader();
         });
+    }
+
+    private void hideLoader() {
+        if (loadingContainer != null) {
+            loadingContainer.setVisibility(View.GONE);
+        }
+        if (profileContentLayout != null) {
+            profileContentLayout.setVisibility(View.VISIBLE);
+        }
     }
 }

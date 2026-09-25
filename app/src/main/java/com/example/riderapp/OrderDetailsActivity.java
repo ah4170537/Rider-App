@@ -132,97 +132,94 @@ public class OrderDetailsActivity extends AppCompatActivity {
     }
 
     private void fetchFullOrderDetailsFromFirestore(String path) {
-        FirebaseFirestore.getInstance().document(path).get()
-                .addOnSuccessListener(doc -> {
-                    if (doc.exists()) {
-                        String orderId = doc.getId();
-                        String fullName = doc.getString("fullName");
+        FirebaseFirestore.getInstance().document(path).addSnapshotListener((doc, error) -> {
+            if (error != null || doc == null || !doc.exists()) {
+                return;
+            }
 
-                        customerAddress = doc.getString("address");
-                        customerCity = doc.getString("city");
+            String orderId = doc.getId();
+            String fullName = doc.getString("fullName");
 
-                        String country = doc.getString("country");
-                        String status = doc.getString("status");
-                        Double total = doc.getDouble("total");
-                        Timestamp createdAt = doc.getTimestamp("createdAt");
-                        customerLat = doc.getDouble("latitude") != null ? doc.getDouble("latitude") : 0.0;
-                        customerLng = doc.getDouble("longitude") != null ? doc.getDouble("longitude") : 0.0;
+            customerAddress = doc.getString("address");
+            customerCity = doc.getString("city");
 
-                        if (tvOrderId != null) tvOrderId.setText("Order ID: #" + orderId);
-                        if (tvStatus != null) tvStatus.setText("Status: " + (status != null ? status : "Pending"));
-                        if (tvCustomerName != null) tvCustomerName.setText(fullName != null ? fullName : "N/A");
-                        if (tvAddress != null) tvAddress.setText(customerAddress != null ? customerAddress : "Not provided");
-                        if (tvCityCountry != null) tvCityCountry.setText((customerCity != null ? customerCity : "") + (country != null ? ", " + country : ""));
-                        if (tvTotal != null) tvTotal.setText("Total Amount: PKR " + (total != null ? total : 0.0));
+            String country = doc.getString("country");
+            String status = doc.getString("status");
+            Double total = doc.getDouble("total");
+            Timestamp createdAt = doc.getTimestamp("createdAt");
+            customerLat = doc.getDouble("latitude") != null ? doc.getDouble("latitude") : 0.0;
+            customerLng = doc.getDouble("longitude") != null ? doc.getDouble("longitude") : 0.0;
 
-                        // Check if the order is already out for delivery or accepted
-                        if (status != null && (status.equalsIgnoreCase("Out for Delivery") || status.equalsIgnoreCase("Accepted"))) {
-                            btnAcceptDelivery.setEnabled(false);
-                            btnAcceptDelivery.setText("Accepted");
-                        }
+            if (tvOrderId != null) tvOrderId.setText("Order ID: #" + orderId);
+            if (tvStatus != null) tvStatus.setText("Status: " + (status != null ? status : "Pending"));
+            if (tvCustomerName != null) tvCustomerName.setText(fullName != null ? fullName : "N/A");
+            if (tvAddress != null) tvAddress.setText(customerAddress != null ? customerAddress : "Not provided");
+            if (tvCityCountry != null) tvCityCountry.setText((customerCity != null ? customerCity : "") + (country != null ? ", " + country : ""));
+            if (tvTotal != null) tvTotal.setText("Total Amount: PKR " + (total != null ? total : 0.0));
 
-                        if (tvOrderTime != null) {
-                            if (createdAt != null) {
-                                Date date = createdAt.toDate();
-                                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.getDefault());
-                                tvOrderTime.setText("Date: " + sdf.format(date));
-                            } else {
-                                tvOrderTime.setText("Date: N/A");
+            // Check if the order is already out for delivery or accepted
+            if (status != null && (status.equalsIgnoreCase("Out for Delivery") || status.equalsIgnoreCase("Accepted"))) {
+                btnAcceptDelivery.setEnabled(false);
+                btnAcceptDelivery.setText("Accepted");
+            }
+
+            if (tvOrderTime != null) {
+                if (createdAt != null) {
+                    Date date = createdAt.toDate();
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.getDefault());
+                    tvOrderTime.setText("Date: " + sdf.format(date));
+                } else {
+                    tvOrderTime.setText("Date: N/A");
+                }
+            }
+
+            // Parse items list format
+            List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
+            StringBuilder fullDetailsBuilder = new StringBuilder();
+
+            if (items != null && !items.isEmpty()) {
+                for (int i = 0; i < items.size(); i++) {
+                    Map<String, Object> itemMap = items.get(i);
+                    String itemName = (String) itemMap.get("name");
+
+                    Object qtyObj = itemMap.get("quantity");
+                    if (qtyObj == null) qtyObj = itemMap.get("qty");
+                    long quantity = (qtyObj instanceof Number) ? ((Number) qtyObj).longValue() : 1;
+
+                    Object priceObj = itemMap.get("price");
+                    double price = (priceObj instanceof Number) ? ((Number) priceObj).doubleValue() : 0.0;
+
+                    fullDetailsBuilder.append("• ").append(itemName != null ? itemName : "Product")
+                            .append("\n    Qty: ").append(quantity)
+                            .append(" | Price: PKR ").append(price);
+
+                    Object partsObj = itemMap.get("parts");
+                    if (partsObj instanceof List) {
+                        List<Map<String, Object>> partsList = (List<Map<String, Object>>) partsObj;
+                        if (!partsList.isEmpty()) {
+                            for (Map<String, Object> partMap : partsList) {
+                                String partName = (String) partMap.get("partName");
+                                Object partQtyObj = partMap.get("quantity");
+                                if (partQtyObj == null) partQtyObj = partMap.get("qty");
+                                long partQty = (partQtyObj instanceof Number) ? ((Number) partQtyObj).longValue() : 1;
+
+                                fullDetailsBuilder.append("\n        └─ ").append(partName != null ? partName : "N/A")
+                                        .append(" (x").append(partQty).append(")");
                             }
                         }
-
-                        // Parse items list format
-                        List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
-                        StringBuilder fullDetailsBuilder = new StringBuilder();
-
-                        if (items != null && !items.isEmpty()) {
-                            for (int i = 0; i < items.size(); i++) {
-                                Map<String, Object> itemMap = items.get(i);
-                                String itemName = (String) itemMap.get("name");
-
-                                Object qtyObj = itemMap.get("quantity");
-                                if (qtyObj == null) qtyObj = itemMap.get("qty");
-                                long quantity = (qtyObj instanceof Number) ? ((Number) qtyObj).longValue() : 1;
-
-                                Object priceObj = itemMap.get("price");
-                                double price = (priceObj instanceof Number) ? ((Number) priceObj).doubleValue() : 0.0;
-
-                                fullDetailsBuilder.append("• ").append(itemName != null ? itemName : "Product")
-                                        .append("\n    Qty: ").append(quantity)
-                                        .append(" | Price: PKR ").append(price);
-
-                                Object partsObj = itemMap.get("parts");
-                                if (partsObj instanceof List) {
-                                    List<Map<String, Object>> partsList = (List<Map<String, Object>>) partsObj;
-                                    if (!partsList.isEmpty()) {
-                                        for (Map<String, Object> partMap : partsList) {
-                                            String partName = (String) partMap.get("partName");
-                                            Object partQtyObj = partMap.get("quantity");
-                                            if (partQtyObj == null) partQtyObj = partMap.get("qty");
-                                            long partQty = (partQtyObj instanceof Number) ? ((Number) partQtyObj).longValue() : 1;
-
-                                            fullDetailsBuilder.append("\n        └─ ").append(partName != null ? partName : "N/A")
-                                                    .append(" (x").append(partQty).append(")");
-                                        }
-                                    }
-                                }
-
-                                if (i < items.size() - 1) {
-                                    fullDetailsBuilder.append("\n\n");
-                                }
-                            }
-                        } else {
-                            fullDetailsBuilder.append("No items found for this order.");
-                        }
-
-                        if (tvItemsList != null) {
-                            tvItemsList.setText(fullDetailsBuilder.toString());
-                        }
-
-                    } else {
-                        Toast.makeText(this, "Order document not found", Toast.LENGTH_SHORT).show();
                     }
-                })
-                .addOnFailureListener(e -> Toast.makeText(this, "Failed to load details: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+
+                    if (i < items.size() - 1) {
+                        fullDetailsBuilder.append("\n\n");
+                    }
+                }
+            } else {
+                fullDetailsBuilder.append("No items found for this order.");
+            }
+
+            if (tvItemsList != null) {
+                tvItemsList.setText(fullDetailsBuilder.toString());
+            }
+        });
     }
 }

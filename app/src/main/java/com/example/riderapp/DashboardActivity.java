@@ -40,6 +40,8 @@ public class DashboardActivity extends AppCompatActivity {
     private BottomNavigationView bottomNavigationView;
     private FrameLayout loadingContainer;
     private LinearLayout mainContentLayout;
+    private OrdersFragment ordersFragment;
+    private ProfileFragment profileFragment;
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
@@ -71,6 +73,16 @@ public class DashboardActivity extends AppCompatActivity {
         tvRiderName = findViewById(R.id.tvRiderName);
         tvProfileInitial = findViewById(R.id.tvProfileInitial);
         tvOrdersFeedTitle = findViewById(R.id.tvOrdersFeedTitle);
+
+        ordersFragment = new OrdersFragment();
+        profileFragment = new ProfileFragment();
+
+        getSupportFragmentManager().beginTransaction()
+                .add(R.id.fragmentContainer, profileFragment, "PROFILE")
+                .hide(profileFragment)
+                .add(R.id.fragmentContainer, ordersFragment, "ORDERS")
+                .hide(ordersFragment)
+                .commit();
 
         // Setup RecyclerView
         rvOrdersFeed.setLayoutManager(new LinearLayoutManager(this));
@@ -136,14 +148,21 @@ public class DashboardActivity extends AppCompatActivity {
                 findViewById(R.id.fragmentContainer).setVisibility(View.GONE);
                 return true;
             } else if (id == R.id.nav_history) {
-                startActivity(new Intent(this, AllOrdersActivity.class));
+                findViewById(R.id.mainContentLayout).setVisibility(View.GONE);
+                findViewById(R.id.fragmentContainer).setVisibility(View.VISIBLE);
+
+                getSupportFragmentManager().beginTransaction()
+                        .show(ordersFragment)
+                        .hide(profileFragment)
+                        .commit();
                 return true;
             } else if (id == R.id.nav_profile) {
                 findViewById(R.id.mainContentLayout).setVisibility(View.GONE);
                 findViewById(R.id.fragmentContainer).setVisibility(View.VISIBLE);
 
                 getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragmentContainer, new ProfileFragment())
+                        .show(profileFragment)
+                        .hide(ordersFragment)
                         .commit();
                 return true;
             }
@@ -187,46 +206,52 @@ public class DashboardActivity extends AppCompatActivity {
         }
         String uid = mAuth.getCurrentUser().getUid();
 
-        db.collection("riders").document(uid).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String fullName = documentSnapshot.getString("fullName");
-                        riderCity = documentSnapshot.getString("city");
+        db.collection("riders").document(uid).addSnapshotListener((documentSnapshot, error) -> {
+            if (error != null) {
+                if (!isProfileLoaded) {
+                    isProfileLoaded = true;
+                    fetchDashboardOrders();
+                }
+                return;
+            }
 
-                        if (fullName != null && !fullName.isEmpty()) {
-                            tvRiderName.setText(fullName);
-                            if (tvProfileInitial != null) {
-                                tvProfileInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
-                            }
+            if (documentSnapshot != null && documentSnapshot.exists()) {
+                String fullName = documentSnapshot.getString("fullName");
+                riderCity = documentSnapshot.getString("city");
 
-                            // Also update sidebar header name/email
-                            View navView = findViewById(R.id.navigationView);
-                            TextView tvDrawerName = navView.findViewById(R.id.navDrawerName);
-                            TextView tvDrawerEmail = navView.findViewById(R.id.navDrawerEmail);
-                            TextView tvDrawerInitial = navView.findViewById(R.id.navDrawerProfileInitial);
-                            if (tvDrawerName != null) tvDrawerName.setText(fullName);
-                            if (tvDrawerEmail != null && mAuth.getCurrentUser() != null) {
-                                tvDrawerEmail.setText(mAuth.getCurrentUser().getEmail());
-                            }
-                            if (tvDrawerInitial != null) tvDrawerInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
-                        }
-
-                        if (riderCity != null && !riderCity.trim().isEmpty()) {
-                            if (tvOrdersFeedTitle != null) {
-                                tvOrdersFeedTitle.setText("Available Orders (" + riderCity.trim() + ")");
-                            }
-                            if (tvActiveStatusLabel != null) {
-                                tvActiveStatusLabel.setText("Active in " + riderCity.trim());
-                            }
-                        }
+                if (fullName != null && !fullName.isEmpty()) {
+                    tvRiderName.setText(fullName);
+                    if (tvProfileInitial != null) {
+                        tvProfileInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
                     }
-                    isProfileLoaded = true;
-                    fetchDashboardOrders();
-                })
-                .addOnFailureListener(e -> {
-                    isProfileLoaded = true;
-                    fetchDashboardOrders();
-                });
+
+                    // Also update sidebar header name/email
+                    View navView = findViewById(R.id.navigationView);
+                    TextView tvDrawerName = navView.findViewById(R.id.navDrawerName);
+                    TextView tvDrawerEmail = navView.findViewById(R.id.navDrawerEmail);
+                    TextView tvDrawerInitial = navView.findViewById(R.id.navDrawerProfileInitial);
+                    if (tvDrawerName != null) tvDrawerName.setText(fullName);
+                    if (tvDrawerEmail != null && mAuth.getCurrentUser() != null) {
+                        tvDrawerEmail.setText(mAuth.getCurrentUser().getEmail());
+                    }
+                    if (tvDrawerInitial != null) tvDrawerInitial.setText(String.valueOf(fullName.charAt(0)).toUpperCase());
+                }
+
+                if (riderCity != null && !riderCity.trim().isEmpty()) {
+                    if (tvOrdersFeedTitle != null) {
+                        tvOrdersFeedTitle.setText("Available Orders (" + riderCity.trim() + ")");
+                    }
+                    if (tvActiveStatusLabel != null) {
+                        tvActiveStatusLabel.setText("Active in " + riderCity.trim());
+                    }
+                }
+            }
+
+            if (!isProfileLoaded) {
+                isProfileLoaded = true;
+                fetchDashboardOrders();
+            }
+        });
     }
 
     private void fetchDashboardOrders() {

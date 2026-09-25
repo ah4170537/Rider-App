@@ -8,11 +8,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -22,20 +22,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class AllOrdersActivity extends AppCompatActivity {
+public class OrdersFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private FirebaseFirestore db;
     private OrdersAdapter adapter;
-    private List<OrderModel> orderList;
+    private List<AllOrdersActivity.OrderModel> orderList;
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_all_orders);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.activity_all_orders, container, false);
 
-        recyclerView = findViewById(R.id.recyclerViewOrders);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView = view.findViewById(R.id.recyclerViewOrders);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         orderList = new ArrayList<>();
         adapter = new OrdersAdapter(orderList);
@@ -43,6 +43,8 @@ public class AllOrdersActivity extends AppCompatActivity {
 
         db = FirebaseFirestore.getInstance();
         fetchOrders();
+
+        return view;
     }
 
     private void fetchOrders() {
@@ -54,6 +56,7 @@ public class AllOrdersActivity extends AppCompatActivity {
 
         String uid = auth.getCurrentUser().getUid();
         db.collection("riders").document(uid).addSnapshotListener((documentSnapshot, error) -> {
+            if (!isAdded()) return;
             String riderCity = (documentSnapshot != null && documentSnapshot.exists()) ? documentSnapshot.getString("city") : null;
             listenToOrders(riderCity);
         });
@@ -63,20 +66,19 @@ public class AllOrdersActivity extends AppCompatActivity {
         db.collectionGroup("user_orders")
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .addSnapshotListener((value, error) -> {
-                    if (error != null) {
-                        android.util.Log.e("FirestoreError", "Failed to fetch orders: " + error.getMessage(), error);
+                    if (error != null || !isAdded()) {
                         return;
                     }
 
                     if (value != null) {
                         orderList.clear();
                         for (DocumentSnapshot doc : value.getDocuments()) {
-                            OrderModel order = doc.toObject(OrderModel.class);
+                            AllOrdersActivity.OrderModel order = doc.toObject(AllOrdersActivity.OrderModel.class);
                             if (order != null) {
                                 String orderCity = order.getCity();
                                 if (riderCity != null && !riderCity.trim().isEmpty()) {
                                     if (orderCity == null || !orderCity.trim().equalsIgnoreCase(riderCity.trim())) {
-                                        continue; // Skip order if city doesn't match rider's city
+                                        continue;
                                     }
                                 }
                                 order.setOrderId(doc.getId());
@@ -89,45 +91,10 @@ public class AllOrdersActivity extends AppCompatActivity {
                 });
     }
 
-    // Order Model Class - Field name matches Firestore "fullName" exactly
-    public static class OrderModel {
-        private String orderId;
-        private String documentPath;
-        private String fullName; // Matches Firestore field name directly
-
-        private double total;
-        private String status;
-        private String address;
-        private String city;
-        private String country;
-        private Timestamp createdAt;
-        private List<Map<String, Object>> items;
-
-        public OrderModel() {} // Required for Firestore
-
-        public String getOrderId() { return orderId; }
-        public void setOrderId(String orderId) { this.orderId = orderId; }
-
-        public String getDocumentPath() { return documentPath; }
-        public void setDocumentPath(String documentPath) { this.documentPath = documentPath; }
-
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
-
-        public double getTotal() { return total; }
-        public String getStatus() { return status; }
-        public String getAddress() { return address; }
-        public String getCity() { return city; }
-        public String getCountry() { return country; }
-        public Timestamp getCreatedAt() { return createdAt; }
-        public List<Map<String, Object>> getItems() { return items; }
-    }
-
-    // RecyclerView Adapter
     private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.OrderViewHolder> {
-        private final List<OrderModel> orders;
+        private final List<AllOrdersActivity.OrderModel> orders;
 
-        public OrdersAdapter(List<OrderModel> orders) {
+        public OrdersAdapter(List<AllOrdersActivity.OrderModel> orders) {
             this.orders = orders;
         }
 
@@ -140,12 +107,11 @@ public class AllOrdersActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
-            OrderModel order = orders.get(position);
+            AllOrdersActivity.OrderModel order = orders.get(position);
 
             holder.tvOrderId.setText("Order ID: #" + (order.getOrderId() != null ? order.getOrderId().toUpperCase() : ""));
             holder.tvCustomerName.setText("Customer: " + (order.getFullName() != null ? order.getFullName() : "Unknown"));
 
-            // Build item previews for card view
             StringBuilder itemsDisplay = new StringBuilder();
             List<Map<String, Object>> items = order.getItems();
 
@@ -195,7 +161,6 @@ public class AllOrdersActivity extends AppCompatActivity {
             holder.tvTotalAmount.setText("PKR " + order.getTotal());
             holder.tvOrderStatus.setText(order.getStatus() != null ? order.getStatus() : "Pending");
 
-            // Launch OrderDetailsActivity passing the Firestore document path
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), OrderDetailsActivity.class);
                 intent.putExtra("documentPath", order.getDocumentPath());
